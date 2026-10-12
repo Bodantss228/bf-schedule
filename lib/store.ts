@@ -176,7 +176,7 @@ export async function schedule(
   const updatedAt = stamps.length
     ? stamps
         .map((c) => c.updatedAt)
-        .sort((a, b) => Date.parse(a) - Date.parse(b))[0]
+        .sort((a, b) => Date.parse(b) - Date.parse(a))[0]
     : null;
   const visibleRows =
     mode === "teacher" ? mergeTeacherPhysicalEducation(rows) : rows;

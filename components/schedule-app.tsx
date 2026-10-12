@@ -173,7 +173,8 @@ export function ScheduleApp() {
       from: week,
       to: end,
     });
-    setData(null);
+    // Keep the last successful response visible while polling/revalidating.
+    // Only the initial request needs to replace the schedule with a loader.
     setLoading(true);
     setError("");
     setOffline(false);
@@ -511,7 +512,7 @@ export function ScheduleApp() {
             </p>
           )}
           <div aria-live="polite" aria-busy={loading} className="space-y-3">
-            {loading ? (
+            {loading && !data ? (
               <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-sm text-slate-500">
                 <RefreshCw className="mx-auto mb-3 size-5 animate-spin" />
                 Загружаем пары…
@@ -614,6 +615,11 @@ export function ScheduleApp() {
                 ? `Последняя синхронизация: ${new Intl.DateTimeFormat("ru-RU", { timeZone: "Asia/Yekaterinburg", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}`
                 : "Ожидаем данные источника"}
             </span>
+            {loading && data && (
+              <span className="flex items-center gap-1.5 text-slate-500">
+                <RefreshCw className="size-3 animate-spin" /> Обновляем…
+              </span>
+            )}
           </div>
         </section>
       </div>
