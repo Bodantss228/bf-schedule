@@ -1,9 +1,63 @@
 import { readFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import path from "node:path";
 import { and, eq, gte, lte, asc } from "drizzle-orm";
 import { database } from "./db";
 import * as schema from "./schema";
 import type { Mode, Snapshot, Schedule } from "./types";
+
+type ScheduleLesson = Schedule["lessons"][number];
+
+function isPhysicalEducation(subject: string) {
+  return /(?:физическ|физкультур|прикладная\s+фк)/i.test(subject);
+}
+
+export function mergeTeacherPhysicalEducation(
+  lessons: ScheduleLesson[],
+): ScheduleLesson[] {
+  const merged = new Map<string, ScheduleLesson[]>();
+  const untouched: ScheduleLesson[] = [];
+
+  for (const lesson of lessons) {
+    if (!isPhysicalEducation(lesson.subject)) {
+      untouched.push(lesson);
+      continue;
+    }
+    const key = [
+      lesson.date,
+      lesson.timeStart,
+      lesson.timeEnd,
+      lesson.subject.trim().toLocaleLowerCase("ru"),
+      lesson.lessonType,
+      lesson.sourceType,
+      lesson.classroom.trim().toLocaleLowerCase("ru"),
+      lesson.teacherId || "",
+    ].join("\u0000");
+    const bucket = merged.get(key);
+    if (bucket) bucket.push(lesson);
+    else merged.set(key, [lesson]);
+  }
+
+  for (const bucket of merged.values()) {
+    const groups = [...new Set(bucket.map((lesson) => lesson.group))].sort(
+      (a, b) => a.localeCompare(b, "ru"),
+    );
+    const ids = bucket.map((lesson) => lesson.id).sort();
+    untouched.push({
+      ...bucket[0],
+      id:
+        bucket.length === 1
+          ? bucket[0].id
+          : createHash("sha256")
+              .update(ids.join("\u0000"))
+              .digest("hex")
+              .slice(0, 24),
+      group: groups.join(", "),
+    });
+  }
+
+  return untouched;
+}
 export async function localSnapshot(): Promise<Snapshot> {
   try {
     return JSON.parse(
@@ -124,8 +178,10 @@ export async function schedule(
         .map((c) => c.updatedAt)
         .sort((a, b) => Date.parse(a) - Date.parse(b))[0]
     : null;
+  const visibleRows =
+    mode === "teacher" ? mergeTeacherPhysicalEducation(rows) : rows;
   return {
-    lessons: rows.sort(
+    lessons: visibleRows.sort(
       (a, b) =>
         a.date.localeCompare(b.date) ||
         a.timeStart.localeCompare(b.timeStart) ||

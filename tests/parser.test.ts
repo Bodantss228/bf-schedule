@@ -10,6 +10,7 @@ import {
 import { calendar, fold } from "../lib/ical";
 import { monday, addDays, today, lessonInstant, validDate } from "../lib/dates";
 import { queryParams } from "../lib/api";
+import { mergeTeacherPhysicalEducation } from "../lib/store";
 
 const group = { id: entityId("group", "ПОВТ-24д"), name: "ПОВТ-24д" };
 const form =
@@ -97,7 +98,7 @@ test("UTC+5 независимо от часового пояса браузер
   );
   assert.equal(validDate("2026-02-31"), false);
 });
-test("iCal: стабильный UID, UTC-время, экранирование, UTF-8 folding", () => {
+test("iCal: стабильный UID, местное время, экранирование, UTF-8 folding", () => {
   const l = parse(html).lessons[0];
   const output = calendar("ПОВТ-24д", [
     {
@@ -107,7 +108,9 @@ test("iCal: стабильный UID, UTC-время, экранирование
       group: group.name,
     },
   ]).replace(/\r\n /g, "");
-  assert.ok(output.includes("DTSTART:20261012T033000Z"));
+  assert.ok(output.includes("BEGIN:VTIMEZONE"));
+  assert.ok(output.includes("DTSTART;TZID=Asia/Yekaterinburg:20261012T083000"));
+  assert.ok(!output.includes("DTSTART:20261012T033000Z"));
   assert.ok(output.includes(`UID:${l.id}@bf-schedule`));
   assert.ok(output.includes("Тема\\; с запятой\\,\\nновая строка"));
   assert.ok(output.endsWith("END:VCALENDAR\r\n"));
@@ -116,6 +119,31 @@ test("iCal: стабильный UID, UTC-время, экранирование
   assert.equal(folded.replace(/\r\n /g, ""), long);
   assert.ok(
     folded.split("\r\n").every((line) => Buffer.byteLength(line) <= 75),
+  );
+});
+test("у преподавателя объединяется только одинаковая физкультура разных групп", () => {
+  const lesson = {
+    ...parse(html).lessons[0],
+    subject: "Прикладная физическая культура",
+    classroom: "Спортзал",
+    teacher: "Преподаватель",
+    group: "ПОВТ-24д",
+  };
+  const second = {
+    ...lesson,
+    id: "second-lesson",
+    groupId: "second-group",
+    group: "ТМО-24д",
+  };
+  const merged = mergeTeacherPhysicalEducation([lesson, second]);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].group, "ПОВТ-24д, ТМО-24д");
+  assert.equal(
+    mergeTeacherPhysicalEducation([
+      { ...lesson, subject: "Социология" },
+      { ...second, subject: "Социология" },
+    ]).length,
+    2,
   );
 });
 test("API отвергает неверные даты, режимы и огромные периоды", () => {
