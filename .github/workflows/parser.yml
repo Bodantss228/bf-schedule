@@ -1,0 +1,28 @@
+name: Update schedule
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: schedule-sync
+  cancel-in-progress: false
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - name: Require database
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: test -n "$DATABASE_URL"
+      - run: npm run sync
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
