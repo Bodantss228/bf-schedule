@@ -611,16 +611,9 @@ export function ScheduleApp() {
           <div className="mt-5 flex items-center justify-between gap-3 text-[11px] text-slate-400">
             <span>
               {data?.updatedAt
-                ? `Проверено: ${new Intl.DateTimeFormat("ru-RU", { timeZone: "Asia/Yekaterinburg", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}`
+                ? `Последняя синхронизация: ${new Intl.DateTimeFormat("ru-RU", { timeZone: "Asia/Yekaterinburg", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(data.updatedAt))}`
                 : "Ожидаем данные источника"}
             </span>
-            <button
-              onClick={() => setReload((r) => r + 1)}
-              className="flex items-center gap-1.5 text-slate-500 hover:text-emerald-700"
-            >
-              <RefreshCw className="size-3" />
-              Обновить
-            </button>
           </div>
         </section>
       </div>
